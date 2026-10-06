@@ -50,7 +50,7 @@ services:
       AFLUENCIA_CLIMA_URL: http://clima:8001
       AFLUENCIA_RULES_VERSION: ${AFLUENCIA_RULES_VERSION:-1}
       AFLUENCIA_ADMIN_USER: ${AFLUENCIA_ADMIN_USER:-admin}
-      AFLUENCIA_ADMIN_PASSWORD: ${AFLUENCIA_ADMIN_PASSWORD:-cambiar-esta-clave}
+      AFLUENCIA_ADMIN_PASSWORD: ${AFLUENCIA_ADMIN_PASSWORD:-admin}
     depends_on:
       clima:
         condition: service_healthy

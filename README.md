@@ -32,7 +32,10 @@ La interfaz queda en `https://localhost` (certificado autofirmado de desarrollo)
 - `GET /api/v1/afluencia/historial?desde=YYYY-MM-DD&hasta=YYYY-MM-DD&pagina=1`
 - `GET /health`
 
-El historial requiere autenticación Basic. Las credenciales de desarrollo se definen en `.env`; deben cambiarse antes de publicar.
+- `PUT /api/v1/afluencia/visitantes/{fecha}`: registra los visitantes reales de un día (`{"visitantes": 120, "nota": "..."}`).
+- `GET /api/v1/afluencia/comparacion?desde=YYYY-MM-DD&hasta=YYYY-MM-DD`: compara visitantes reales con las visitas estimadas.
+
+El historial y el registro de visitantes requieren autenticación Basic. Las credenciales por defecto son `admin` / `admin` (definidas en `.env` y `nginx/.htpasswd`); **deben cambiarse antes de publicar**. La pantalla de administración está en `/#admin`.
 
 ## Regla de afluencia
 

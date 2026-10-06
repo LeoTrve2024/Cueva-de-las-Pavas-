@@ -53,5 +53,38 @@ class HistoryResponse(BaseModel):
     resultados: list[HistoryItem]
 
 
+class VisitorRecordIn(BaseModel):
+    visitantes: int = Field(ge=0, le=100_000)
+    nota: str | None = Field(default=None, max_length=200)
+
+
+class VisitorRecord(BaseModel):
+    fecha: date
+    visitantes: int
+    nota: str | None
+    registrado_en: AwareDatetime
+
+
+class ComparisonItem(BaseModel):
+    fecha: date
+    visitantes_reales: int
+    nota: str | None
+    puntuacion: int | None
+    nivel: Literal["baja", "media", "alta"] | None
+    visitas_estimadas: int | None
+    diferencia: int | None = Field(description="Estimadas menos reales; positivo = sobreestimó.")
+
+
+class ComparisonSummary(BaseModel):
+    dias_comparados: int
+    error_absoluto_medio: float | None
+    sesgo_medio: float | None
+
+
+class ComparisonResponse(BaseModel):
+    resumen: ComparisonSummary
+    resultados: list[ComparisonItem]
+
+
 class ErrorResponse(BaseModel):
     detail: str
