@@ -10,14 +10,22 @@ import httpx
 
 from pavas_afluencia.config import Settings
 from pavas_afluencia.repository import AfluenciaRepository
-from pavas_afluencia.schemas import DayResult, FactorResponse, ForecastResponse, HistoryItem
+from pavas_afluencia.schemas import (
+    ComparisonItem,
+    ComparisonResponse,
+    ComparisonSummary,
+    DayResult,
+    FactorResponse,
+    ForecastResponse,
+    HistoryItem,
+)
 
 LIMA = ZoneInfo("America/Lima")
 
 # Escala experimental. MINCETUR (ficha 4838) estima 62 550 visitas en 2023 a partir de
 # 4 semanas de conteo muestral; eso da ~171 visitas por día en promedio. En 2023 llovió
 # >= 1 mm en 212 de 365 días (Open-Meteo archive), por lo que un día promedio tiene
-# P = 58,1 y D = 450/7, es decir S = 0,6 × (100 − 58,1) + 0,4 × 450/7 ≈ 50,9.
+# P = 58,1 y D = 450/7, es decir S = 0,6 x (100 - 58,1) + 0,4 x 450/7 = 50,9.
 VISITAS_ANUALES_2023 = 62_550
 PUNTUACION_PROMEDIO = 50.9
 
@@ -34,6 +42,26 @@ def estimated_visits(value: int) -> int:
     """Visitas diarias aproximadas, proporcionales a la puntuación y redondeadas a 10."""
     daily_average = VISITAS_ANUALES_2023 / 365
     return round(daily_average * value / PUNTUACION_PROMEDIO / 10) * 10
+
+
+def build_comparison(rows: list[dict[str, Any]]) -> ComparisonResponse:
+    """Compara visitantes reales con las visitas estimadas de la última puntuación calculada."""
+    items: list[ComparisonItem] = []
+    for row in rows:
+        score_value = row["puntuacion"]
+        estimate = estimated_visits(score_value) if score_value is not None else None
+        items.append(ComparisonItem(
+            fecha=row["fecha"], visitantes_reales=row["visitantes"], nota=row["nota"],
+            puntuacion=score_value, nivel=row["nivel"], visitas_estimadas=estimate,
+            diferencia=estimate - row["visitantes"] if estimate is not None else None,
+        ))
+    gaps = [item.diferencia for item in items if item.diferencia is not None]
+    summary = ComparisonSummary(
+        dias_comparados=len(gaps),
+        error_absoluto_medio=round(sum(abs(g) for g in gaps) / len(gaps), 1) if gaps else None,
+        sesgo_medio=round(sum(gaps) / len(gaps), 1) if gaps else None,
+    )
+    return ComparisonResponse(resumen=summary, resultados=items)
 
 
 def level(value: int) -> str:

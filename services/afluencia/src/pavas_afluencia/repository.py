@@ -1,11 +1,12 @@
 """Persistencia exclusiva del servicio Afluencia."""
 from datetime import date, datetime
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 
-from pavas_afluencia.schemas import DayResult, HistoryItem
+from pavas_afluencia.schemas import DayResult, HistoryItem, VisitorRecord
 
 
 class AfluenciaRepository:
@@ -37,6 +38,15 @@ class AfluenciaRepository:
                     motivo TEXT NOT NULL,
                     UNIQUE (ejecucion_id, fecha_objetivo),
                     CHECK (puntuacion IS NULL OR (puntuacion >= 0 AND puntuacion <= 100))
+                )
+            """))
+
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS afluencia.visitantes_registro (
+                    fecha DATE PRIMARY KEY,
+                    visitantes INTEGER NOT NULL CHECK (visitantes >= 0),
+                    nota TEXT,
+                    registrado_en TIMESTAMPTZ NOT NULL DEFAULT now()
                 )
             """))
 
@@ -95,6 +105,36 @@ class AfluenciaRepository:
                 LIMIT 20 OFFSET :offset
             """), {"start": start, "end": end, "offset": offset}).mappings().all()
         return int(total), [HistoryItem(**dict(row)) for row in rows]
+
+    def upsert_visitors(self, day: date, visitors: int, note: str | None) -> VisitorRecord:
+        with self.engine.begin() as conn:
+            row = conn.execute(text("""
+                INSERT INTO afluencia.visitantes_registro (fecha, visitantes, nota, registrado_en)
+                VALUES (:day, :visitors, :note, now())
+                ON CONFLICT (fecha) DO UPDATE
+                SET visitantes = EXCLUDED.visitantes, nota = EXCLUDED.nota, registrado_en = now()
+                RETURNING fecha, visitantes, nota, registrado_en
+            """), {"day": day, "visitors": visitors, "note": note}).mappings().one()
+        return VisitorRecord(**dict(row))
+
+    def visitor_rows(self, start: date, end: date) -> list[dict[str, Any]]:
+        """Visitantes reales con la última puntuación calculada para esa misma fecha."""
+        with self.engine.connect() as conn:
+            rows = conn.execute(text("""
+                SELECT v.fecha, v.visitantes, v.nota, r.puntuacion, r.nivel
+                FROM afluencia.visitantes_registro v
+                LEFT JOIN LATERAL (
+                    SELECT r.puntuacion, r.nivel
+                    FROM afluencia.resultados r
+                    JOIN afluencia.ejecuciones e ON e.id = r.ejecucion_id
+                    WHERE r.fecha_objetivo = v.fecha AND r.estado = 'disponible'
+                    ORDER BY e.calculado_en DESC
+                    LIMIT 1
+                ) r ON true
+                WHERE v.fecha BETWEEN :start AND :end
+                ORDER BY v.fecha DESC
+            """), {"start": start, "end": end}).mappings().all()
+        return [dict(row) for row in rows]
 
     def health(self) -> bool:
         with self.engine.connect() as conn:

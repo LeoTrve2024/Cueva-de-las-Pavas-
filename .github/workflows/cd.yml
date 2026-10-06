@@ -1,0 +1,39 @@
+name: CD
+
+# Solo se ejecuta al publicar un release (no en cada push ni pull request).
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cd-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # Los pre-releases no se despliegan.
+    if: ${{ !github.event.release.prerelease }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Deploy (stub)
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          echo "STUB: aquí se desplegaría ${RELEASE_TAG} en EC2. No se ejecuta ningún despliegue real."
+          # Pasos previstos cuando se active el despliegue real:
+          #   1. Configurar la llave SSH desde secretos del environment `production`
+          #      (EC2_HOST, EC2_USER, EC2_SSH_KEY).
+          #   2. ssh "$EC2_USER@$EC2_HOST" "cd /opt/pavas \
+          #        && git fetch --tags && git checkout $RELEASE_TAG \
+          #        && docker compose up -d --build"
+          #   3. Comprobar https://$EC2_HOST/health antes de dar el despliegue por bueno.
+          #   Para revertir: repetir con la etiqueta del release anterior.

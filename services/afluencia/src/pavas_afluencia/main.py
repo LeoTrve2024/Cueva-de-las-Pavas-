@@ -2,7 +2,7 @@
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 
 import httpx
@@ -12,8 +12,20 @@ from pydantic import BaseModel
 
 from pavas_afluencia.config import Settings
 from pavas_afluencia.repository import AfluenciaRepository
-from pavas_afluencia.schemas import ErrorResponse, ForecastResponse, HistoryResponse
-from pavas_afluencia.service import AfluenciaService, AfluenciaUnavailableError
+from pavas_afluencia.schemas import (
+    ComparisonResponse,
+    ErrorResponse,
+    ForecastResponse,
+    HistoryResponse,
+    VisitorRecord,
+    VisitorRecordIn,
+)
+from pavas_afluencia.service import (
+    LIMA,
+    AfluenciaService,
+    AfluenciaUnavailableError,
+    build_comparison,
+)
 
 
 class HealthResponse(BaseModel):
@@ -79,5 +91,34 @@ def create_app(*, settings: Settings | None = None,
             return HistoryResponse(pagina=pagina, resultados=[], total=0)
         total, rows = repository.history(desde, hasta, pagina)
         return HistoryResponse(pagina=pagina, resultados=rows, total=total)
+
+    def repository_or_503(request: Request) -> AfluenciaRepository:
+        repository: AfluenciaRepository | None = getattr(request.app.state.service, "repository", None)
+        if repository is None:
+            raise HTTPException(status_code=503, detail="La base de datos no está disponible.")
+        return repository
+
+    @app.put("/api/v1/afluencia/visitantes/{fecha}", response_model=VisitorRecord,
+             responses={401: {"model": ErrorResponse}, 422: {"model": ErrorResponse},
+                        503: {"model": ErrorResponse}}, tags=["visitantes"])
+    def register_visitors(fecha: date, body: VisitorRecordIn, request: Request,
+                          _: None = Depends(admin)) -> VisitorRecord:
+        if fecha > datetime.now(LIMA).date():
+            raise HTTPException(
+                status_code=422,
+                detail="No se pueden registrar visitantes de una fecha futura.",
+            )
+        return repository_or_503(request).upsert_visitors(fecha, body.visitantes, body.nota)
+
+    @app.get("/api/v1/afluencia/comparacion", response_model=ComparisonResponse,
+             responses={401: {"model": ErrorResponse}, 422: {"model": ErrorResponse},
+                        503: {"model": ErrorResponse}}, tags=["visitantes"])
+    def compare(request: Request, desde: date = Query(...), hasta: date = Query(...),
+                _: None = Depends(admin)) -> ComparisonResponse:
+        if desde > hasta:
+            raise HTTPException(status_code=422, detail="desde no puede ser posterior a hasta.")
+        if (hasta - desde).days > 366:
+            raise HTTPException(status_code=422, detail="El rango no puede superar 366 días.")
+        return build_comparison(repository_or_503(request).visitor_rows(desde, hasta))
 
     return app

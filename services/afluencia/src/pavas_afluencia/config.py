@@ -15,4 +15,4 @@ class Settings(BaseSettings):
     clima_url: str = "http://clima:8001"
     rules_version: str = "1"
     admin_user: str = "admin"
-    admin_password: str = "cambiar-esta-clave"
+    admin_password: str = "admin"
