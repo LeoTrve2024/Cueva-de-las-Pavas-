@@ -1,0 +1,27 @@
+# Dependencies and tool caches
+node_modules/
+.venv/
+.cache/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Build and test output
+dist/
+build/
+coverage/
+.coverage*
+htmlcov/
+*.tsbuildinfo
+
+# Local configuration
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+.idea/
+~$*.docx

@@ -1,0 +1,86 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pavas}
+      POSTGRES_USER: ${POSTGRES_USER:-pavas_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pavas_local_only}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/01-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pavas_admin} -d ${POSTGRES_DB:-pavas}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  clima:
+    build:
+      context: .
+      dockerfile: services/clima/Dockerfile
+    environment:
+      CLIMA_ENVIRONMENT: ${CLIMA_ENVIRONMENT:-development}
+      CLIMA_LOG_LEVEL: ${CLIMA_LOG_LEVEL:-INFO}
+      CLIMA_LATITUDE: ${CLIMA_LATITUDE:--9.37105}
+      CLIMA_LONGITUDE: ${CLIMA_LONGITUDE:--75.975}
+      CLIMA_DATABASE_URL: postgresql://pavas_clima:pavas_clima_local@postgres:5432/${POSTGRES_DB:-pavas}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    expose:
+      - "8001"
+    healthcheck:
+      test: ["CMD", "python", "-c", 'import urllib.request; urllib.request.urlopen("http://127.0.0.1:8001/health", timeout=2)']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  afluencia:
+    build:
+      context: .
+      dockerfile: services/afluencia/Dockerfile
+    environment:
+      AFLUENCIA_ENVIRONMENT: ${AFLUENCIA_ENVIRONMENT:-development}
+      AFLUENCIA_LOG_LEVEL: ${AFLUENCIA_LOG_LEVEL:-INFO}
+      AFLUENCIA_DATABASE_URL: postgresql://pavas_afluencia:pavas_afluencia_local@postgres:5432/${POSTGRES_DB:-pavas}
+      AFLUENCIA_CLIMA_URL: http://clima:8001
+      AFLUENCIA_RULES_VERSION: ${AFLUENCIA_RULES_VERSION:-1}
+      AFLUENCIA_ADMIN_USER: ${AFLUENCIA_ADMIN_USER:-admin}
+      AFLUENCIA_ADMIN_PASSWORD: ${AFLUENCIA_ADMIN_PASSWORD:-cambiar-esta-clave}
+    depends_on:
+      clima:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    expose:
+      - "8002"
+    healthcheck:
+      test: ["CMD", "python", "-c", 'import urllib.request; urllib.request.urlopen("http://127.0.0.1:8002/health", timeout=2)']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/.htpasswd:/etc/nginx/.htpasswd:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - afluencia
+      - clima
+    ports:
+      - "80:80"
+      - "443:443"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

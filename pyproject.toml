@@ -1,0 +1,49 @@
+[project]
+name = "pavas-workspace"
+version = "0.1.0"
+description = "Herramientas del monorepo Cueva de las Pavas"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv]
+package = false
+required-version = ">=0.11.16,<0.12"
+cache-dir = ".cache/uv"
+
+[tool.uv.workspace]
+members = ["services/*"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["services/clima/src", "services/afluencia/src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["services/clima/src", "services/afluencia/src"]
+plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+testpaths = ["services/clima/tests", "services/afluencia/tests"]
+addopts = "-ra --strict-config --strict-markers --import-mode=importlib"
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+branch = true
+source = ["pavas_clima", "pavas_afluencia"]
+
+[tool.coverage.report]
+show_missing = true
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.13.1,<2.14.0",
+    "mypy>=2.3.1,<2.4.0",
+    "pytest>=9.1.1,<9.2.0",
+    "pytest-cov>=7.1.0,<7.2.0",
+    "ruff>=0.16.9,<0.16.10",
+]
