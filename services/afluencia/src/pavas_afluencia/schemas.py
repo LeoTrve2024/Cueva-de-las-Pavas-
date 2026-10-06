@@ -16,6 +16,7 @@ class DayResult(BaseModel):
     estado: Literal["disponible", "sin_estimacion"]
     puntuacion: int | None = Field(default=None, ge=0, le=100)
     nivel: Literal["baja", "media", "alta"] | None = None
+    visitas_estimadas: int | None = Field(default=None, ge=0)
     factores: FactorResponse | None = None
     explicacion: str
     version_reglas: str

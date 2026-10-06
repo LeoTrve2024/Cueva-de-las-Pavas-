@@ -44,6 +44,10 @@ El historial requiere autenticación Basic. Las credenciales de desarrollo se de
 - 40–69: media.
 - 70–100: alta.
 
+## Visitas estimadas (experimental)
+
+Cada día disponible incluye `visitas_estimadas`: `171 × S / 50,9`, redondeado a decenas. 171 es el promedio diario de las 62 550 visitas de 2023 (MINCETUR, ficha 4838, conteo de 4 semanas) y 50,9 es la puntuación de un día promedio (en 2023 llovió ≥ 1 mm en 212 de 365 días según Open-Meteo). Es una escala de referencia, no una medición ni una predicción validada. El valor se calcula al responder y no se guarda en la base de datos.
+
 Un dato climático faltante no se convierte en lluvia cero: la fecha queda como `sin_estimacion`.
 
 ## Validación

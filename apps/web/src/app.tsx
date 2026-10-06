@@ -5,6 +5,7 @@ type Day = {
   estado: "disponible" | "sin_estimacion";
   puntuacion: number | null;
   nivel: "baja" | "media" | "alta" | null;
+  visitas_estimadas: number | null;
   factores: { lluvia_pct: number; factor_dia: number } | null;
   explicacion: string;
 };
@@ -100,8 +101,8 @@ export function App() {
       {selectedDay && (
         <section className="detail" aria-live="polite">
           <div><p className="eyebrow">Detalle del día</p><h2>{new Date(`${selectedDay.fecha}T12:00:00`).toLocaleDateString("es-PE", { weekday: "long", day: "numeric", month: "long" })}</h2></div>
-          <div className="score"><span>Puntuación orientativa</span><strong>{selectedDay.puntuacion == null ? "—" : `${selectedDay.puntuacion}/100`}</strong><b>{selectedDay.nivel ?? "Sin estimación"}</b></div>
-          <div className="explanation"><strong>¿Cómo se calcula?</strong><p>{selectedDay.explicacion}</p><p>La puntuación combina 60 % de la condición asociada a la lluvia y 40 % del factor de calendario. No representa visitantes, ocupación ni probabilidad de asistencia.</p></div>
+          <div className="score"><span>Puntuación orientativa</span><strong>{selectedDay.puntuacion == null ? "—" : `${selectedDay.puntuacion}/100`}</strong><b>{selectedDay.nivel ?? "Sin estimación"}</b>{selectedDay.visitas_estimadas != null && <small>≈ {selectedDay.visitas_estimadas} visitas (estimación muy aproximada)</small>}</div>
+          <div className="explanation"><strong>¿Cómo se calcula?</strong><p>{selectedDay.explicacion}</p><p>La puntuación combina 60 % de la condición asociada a la lluvia y 40 % del factor de calendario. La cifra de visitas es una conversión experimental: usa el total de 2023 de MINCETUR (62 550 visitas, conteo de 4 semanas), por lo que no es una medición ni una probabilidad de asistencia.</p></div>
         </section>
       )}
 

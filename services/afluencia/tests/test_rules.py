@@ -1,6 +1,6 @@
 from datetime import date
 
-from pavas_afluencia.service import day_factor, level, score
+from pavas_afluencia.service import day_factor, estimated_visits, level, score
 
 
 def test_document_examples() -> None:
@@ -19,3 +19,10 @@ def test_boundaries() -> None:
 def test_calendar_factor() -> None:
     assert day_factor(date(2026, 10, 3)) == 100
     assert day_factor(date(2026, 10, 5)) == 50
+
+
+def test_estimated_visits_scale() -> None:
+    assert estimated_visits(51) == 170  # día promedio ≈ 171 visitas
+    assert estimated_visits(88) == 300
+    assert estimated_visits(26) == 90
+    assert estimated_visits(0) == 0

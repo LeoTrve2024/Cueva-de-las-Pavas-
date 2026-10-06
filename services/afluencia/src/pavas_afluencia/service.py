@@ -14,6 +14,13 @@ from pavas_afluencia.schemas import DayResult, FactorResponse, ForecastResponse,
 
 LIMA = ZoneInfo("America/Lima")
 
+# Escala experimental. MINCETUR (ficha 4838) estima 62 550 visitas en 2023 a partir de
+# 4 semanas de conteo muestral; eso da ~171 visitas por día en promedio. En 2023 llovió
+# >= 1 mm en 212 de 365 días (Open-Meteo archive), por lo que un día promedio tiene
+# P = 58,1 y D = 450/7, es decir S = 0,6 × (100 − 58,1) + 0,4 × 450/7 ≈ 50,9.
+VISITAS_ANUALES_2023 = 62_550
+PUNTUACION_PROMEDIO = 50.9
+
 
 class AfluenciaUnavailableError(Exception):
     """El servicio Clima o la persistencia no están disponibles."""
@@ -21,6 +28,12 @@ class AfluenciaUnavailableError(Exception):
 
 def score(rain: float, factor_day: int) -> int:
     return math.floor((0.6 * (100 - rain) + 0.4 * factor_day) + 0.5)
+
+
+def estimated_visits(value: int) -> int:
+    """Visitas diarias aproximadas, proporcionales a la puntuación y redondeadas a 10."""
+    daily_average = VISITAS_ANUALES_2023 / 365
+    return round(daily_average * value / PUNTUACION_PROMEDIO / 10) * 10
 
 
 def level(value: int) -> str:
@@ -67,7 +80,10 @@ class AfluenciaService:
                 days = [
                     DayResult(
                         fecha=item.fecha_objetivo, estado=item.estado, puntuacion=item.puntuacion,
-                        nivel=item.nivel, factores=FactorResponse(lluvia_pct=item.lluvia_pct, factor_dia=item.factor_dia)
+                        nivel=item.nivel,
+                        visitas_estimadas=estimated_visits(item.puntuacion)
+                        if item.puntuacion is not None else None,
+                        factores=FactorResponse(lluvia_pct=item.lluvia_pct, factor_dia=item.factor_dia)
                         if item.lluvia_pct is not None else None,
                         explicacion=item.motivo, version_reglas=item.version_reglas,
                     ) for item in cached
@@ -95,6 +111,7 @@ class AfluenciaService:
                 continue
             value = score(rain, factor)
             days.append(DayResult(fecha=target, estado="disponible", puntuacion=value, nivel=level(value),
+                visitas_estimadas=estimated_visits(value),
                 factores=FactorResponse(lluvia_pct=rain, factor_dia=factor),
                 explicacion=f"Lluvia {rain:g} % y {'fin de semana' if factor == 100 else 'día laborable'}",
                 version_reglas=self.settings.rules_version))
